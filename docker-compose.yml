@@ -1,0 +1,26 @@
+services:
+  llm-proxy:
+    build: .
+    container_name: llm-proxy
+    # Comes back after crashes, Docker restarts and Pi reboots (needs `systemctl enable docker`)
+    restart: unless-stopped
+    # Host networking so the proxy can bind the Pi's Tailscale IP (BIND in .env)
+    # instead of a Docker bridge. It still listens ONLY on that one IP.
+    network_mode: host
+    env_file: .env
+    # Hardening
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,socket; socket.create_connection((os.environ['BIND'], int(os.environ.get('PORT','8787'))), 3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
